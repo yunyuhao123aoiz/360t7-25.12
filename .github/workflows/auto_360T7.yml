@@ -18,32 +18,10 @@ jobs:
         id: date
         run: echo "date=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
 
-      - name: Check upstream updates
-        id: check
-        run: |
-          UPSTREAM_COMMIT=$(git ls-remote --heads https://github.com/chasey-dev/immortalwrt-mt798x-rebase.git 25.12 | awk '{print $1}')
-          echo "upstream_commit=$UPSTREAM_COMMIT" >> $GITHUB_OUTPUT
-          
-          if [ -f .last_sync_commit ]; then
-            LAST_COMMIT=$(cat .last_sync_commit)
-          else
-            LAST_COMMIT=""
-          fi
-          
-          if [ "$LAST_COMMIT" = "$UPSTREAM_COMMIT" ] && [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
-            echo "need_build=false" >> $GITHUB_OUTPUT
-          else
-            echo "need_build=true" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Skip if no update
-        if: steps.check.outputs.need_build == 'false'
-        run: |
-          echo "上游无更新，跳过编译"
-          exit 0
+      # ========== 已移除“检查上游更新”的步骤 ==========
 
       - name: Build firmware
-        if: steps.check.outputs.need_build == 'true'
+        # 移除了 if 条件，现在始终执行
         run: |
           # 克隆 chasey-dev 25.12 仓库源码
           git clone https://github.com/chasey-dev/immortalwrt-mt798x-rebase.git openwrt -b 25.12
@@ -63,18 +41,9 @@ jobs:
           # 删除 packages 目录（不需要上传）
           rm -rf bin/targets/mediatek/filogic/packages
 
-      - name: Update sync record
-        if: steps.check.outputs.need_build == 'true'
-        run: |
-          echo "${{ steps.check.outputs.upstream_commit }}" > .last_sync_commit
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .last_sync_commit
-          git commit -m "Update sync record" || true
-          git push || true
+      # ========== 移除了“更新同步记录”的步骤（已无用） ==========
 
       - name: Upload firmware
-        if: steps.check.outputs.need_build == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: immortalwrt-25.12-rax3000m-firmware
@@ -82,7 +51,6 @@ jobs:
           if-no-files-found: warn
 
       - name: Create Release and Upload Assets
-        if: steps.check.outputs.need_build == 'true'
         uses: softprops/action-gh-release@v1
         with:
           name: "360T7 固件 ${{ steps.date.outputs.date }} #${{ github.run_number }}"
