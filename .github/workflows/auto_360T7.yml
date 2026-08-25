@@ -18,10 +18,7 @@ jobs:
         id: date
         run: echo "date=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
 
-      # ========== 已移除“检查上游更新”的步骤 ==========
-
       - name: Build firmware
-        # 移除了 if 条件，现在始终执行
         run: |
           # 克隆 chasey-dev 25.12 仓库源码
           git clone https://github.com/chasey-dev/immortalwrt-mt798x-rebase.git openwrt -b 25.12
@@ -33,15 +30,25 @@ jobs:
           
           # 复制你自己的配置文件
           cp ../defconfig/rax3000m-360T7.config .config
+          
+          # ========== 修复：禁用 Rust 相关包，避免编译失败 ==========
+          echo "# 禁用 Rust 和 Ruby（避免资源耗尽）" >> .config
+          echo "# CONFIG_PACKAGE_rust is not set" >> .config
+          echo "# CONFIG_PACKAGE_ruby is not set" >> .config
+          echo "# CONFIG_PACKAGE_sing-box is not set" >> .config
+          echo "# CONFIG_PACKAGE_shadowsocks-rust is not set" >> .config
+          
+          # 同步配置
+          make defconfig
+          
           # 下载编译所需的源码包
           make download -j$(nproc)
-          # 开始编译
-          make -j$(nproc)
+          
+          # ========== 修复：强制单线程编译，减少内存压力 ==========
+          make -j1 V=s
           
           # 删除 packages 目录（不需要上传）
           rm -rf bin/targets/mediatek/filogic/packages
-
-      # ========== 移除了“更新同步记录”的步骤（已无用） ==========
 
       - name: Upload firmware
         uses: actions/upload-artifact@v4
